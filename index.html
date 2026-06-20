@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Curtailment Brasil — Painel de Restrição (Constrained-off)</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="wrap">
+      <h1>⚡ Curtailment Brasil</h1>
+      <p class="sub">Energia eólica e solar cortada por restrição operativa (<em>constrained-off</em>) no SIN — dados oficiais do ONS.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <!-- KPI cards -->
+    <section class="kpis" id="kpis"></section>
+
+    <p class="meta" id="meta"></p>
+
+    <!-- Charts -->
+    <section class="grid">
+      <div class="card span2">
+        <h2>Evolução mensal <span class="hint">GWh cortados por mês</span></h2>
+        <canvas id="chartMonthly"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Por subsistema <span class="hint">região do SIN</span></h2>
+        <canvas id="chartSubsystem"></canvas>
+      </div>
+
+      <div class="card">
+        <h2>Por motivo da restrição <span class="hint">cod_razaorestricao</span></h2>
+        <canvas id="chartReasons"></canvas>
+      </div>
+
+      <div class="card span2">
+        <h2>Top estados <span class="hint">GWh cortados (eólica + solar)</span></h2>
+        <canvas id="chartStates"></canvas>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <p>
+        Fonte: <a href="https://dados.ons.org.br/" target="_blank" rel="noopener">ONS — Dados Abertos</a>,
+        conjuntos <em>Restrição de Operação por Constrained-off</em> (eólica &amp; fotovoltaica).
+        Corte = max(0, geração de referência final − geração) × 0,5 h, contado apenas em intervalos com motivo de restrição registrado.
+      </p>
+      <p>Atualize os dados com <code>bash scripts/build_data.sh</code>.</p>
+    </footer>
+  </main>
+
+  <!-- data + chart lib are plain <script> tags, so this works by double-clicking the file (no server, no CORS) -->
+  <script src="vendor/chart.umd.min.js"></script>
+  <script src="data.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
