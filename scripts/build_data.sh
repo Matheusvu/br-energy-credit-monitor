@@ -115,10 +115,11 @@ reasons_json() {
   | sort -k4 -nr | awk '{ printf "%s{\"code\":\"%s\",\"wind\":%.1f,\"solar\":%.1f}", (NR>1?",":""), $1, $2/1000, $3/1000 }'
 }
 states_json() {
-  awk -F'\t' '$1=="E"{ key=$2"|"$3; if($4=="wind")w[key]=$5; else s[key]=$5; seen[key]=1 }
-    END{ for(k in seen){ split(k,p,"|"); print p[1], p[2], (w[k]+s[k]) } }' "$AGG" \
-  | sort -k3 -nr | head -10 \
-  | awk '{ printf "%s{\"uf\":\"%s\",\"name\":\"%s\",\"total\":%.1f}", (NR>1?",":""), $1, $2, $3/1000 }'
+  # Keep tab-delimited throughout so multi-word state names (e.g. "RIO GRANDE DO NORTE") survive.
+  awk -F'\t' '$1=="E"{ key=$2"\t"$3; if($4=="wind")w[key]=$5; else s[key]=$5; seen[key]=1 }
+    END{ for(k in seen) printf "%s\t%.3f\n", k, (w[k]+s[k]) }' "$AGG" \
+  | sort -t"$(printf '\t')" -k3 -nr | head -10 \
+  | awk -F'\t' '{ printf "%s{\"uf\":\"%s\",\"name\":\"%s\",\"total\":%.1f}", (NR>1?",":""), $1, $2, $3/1000 }'
 }
 kpi_field() { awk -F'\t' -v s="$1" '$1=="K" && $4==s{ printf "%.1f", $5/1000 }' "$AGG"; }
 
