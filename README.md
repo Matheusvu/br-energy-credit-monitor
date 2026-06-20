@@ -1,76 +1,62 @@
-# ⚡ Curtailment Brasil
+# ⚡ Brazil Power-Sector Credit-Risk Monitor
 
-A dashboard for **wind and solar curtailment** (*constrained-off*) in Brazil's
-national grid (SIN), built from official **ONS Open Data**.
+A **DuckDB + Parquet data warehouse** of Brazilian power-sector open data (ONS, and —
+on the roadmap — ANEEL/CCEE/CVM), built for a **private-credit team** to monitor the
+sector and drill down to borrower/asset level. The core deliverable is a tidy,
+documented, continuously-updated dataset you query with **Claude Code**; a static
+dashboard is one view on top.
 
-Curtailment is renewable energy that *could* have been generated but was cut by
-the operator due to grid limits, oversupply, or reliability constraints — a fast-growing
-problem in Brazil's Northeast.
-
-![dashboard](docs/screenshot.png)
+> Full design & source inventory: [`docs/PLATFORM_SPEC.md`](docs/PLATFORM_SPEC.md).
+> Analyst's map (data model, conventions, example queries): [`CLAUDE.md`](CLAUDE.md).
 
 ## Quick start
 
-No installs needed — everything runs with tools already on macOS (`curl`, `awk`).
+```bash
+# 1. Install uv (once):  curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync                                            # create env + install deps
+uv run python -m bpcm.cli refresh --months 12 --end 2026-03
+open dashboard/index.html                          # view the dashboard
+```
+
+`refresh` runs the whole pipeline: **ingest → stage → marts → quality → export**.
+
+## What you get
+
+- `data/marts/mart_plant_monthly.parquet` — per plant × source × month: curtailed energy,
+  generation, and **curtailment rate %**. Query it directly:
+  ```bash
+  duckdb -c ".read queries/top_curtailed_plants.sql"
+  ```
+- `dashboard/` — the static dashboard, now fed from the warehouse.
+- `data/manifest.jsonl` — provenance for every downloaded file (URL, hash, rows, timestamp).
+
+## Pipeline (robust by design)
+
+| Stage | Module | Robustness |
+|---|---|---|
+| ingest | `bpcm/ingest.py` | retries+backoff, atomic writes, sha256, idempotent, 404-tolerant |
+| stage | `bpcm/stage.py` | schema-contract validation; bad files → `data/quarantine/` |
+| marts | `bpcm/marts.py` | DuckDB SQL; shared tested formula (`bpcm/transforms.py`) |
+| quality | `bpcm/quality.py` | range/null/referential assertions; fails loud |
+| export | `bpcm/export_dashboard.py` | marts → `dashboard/data.js` |
 
 ```bash
-# 1. Build the dataset (downloads ONS CSVs, aggregates them into data.js)
-bash scripts/build_data.sh
-
-# 2. Open the dashboard
-open index.html
+uv run pytest          # transform + plumbing unit tests
+uv run python -m bpcm.cli manifest   # provenance summary
 ```
 
-That's it. The page loads `data.js` and `vendor/chart.umd.min.js` via plain
-`<script>` tags, so it works by **double-clicking `index.html`** — no web server.
+## Adding a source
 
-## Configuring the build
+Add one `DatasetSpec` to `bpcm/sources.py` (S3 path, period type, required columns).
+The ingest/stage machinery is generic.
 
-```bash
-MONTHS=12 END=2026-03 bash scripts/build_data.sh
-```
+## Automation
 
-- `MONTHS` — how many months back to include (default `12`).
-- `END` — last month to include, `YYYY-MM` (default `2026-03`, the latest published wind month).
+`.github/workflows/refresh.yml` re-runs the pipeline monthly, commits updated marts +
+dashboard data, and deploys the dashboard to GitHub Pages. (Enable Pages: Settings → Pages → GitHub Actions.)
 
-Months that aren't published yet are skipped automatically.
+## Roadmap
 
-## How curtailment is computed
-
-For each half-hourly record per plant:
-
-```
-curtailed_MWmed = max(0, val_geracaoreferenciafinal − val_geracao)   # falls back to val_geracaoreferencia
-curtailed_MWh   = curtailed_MWmed × 0.5                                # 30-min samples
-```
-
-Only intervals that carry a **restriction reason** (`cod_razaorestricao`) are
-counted, so normal forecast error is not mistaken for curtailment.
-
-Reason codes:
-
-| Code | Meaning |
-|------|---------|
-| `ENE` | Energético — oversupply / transmission limits |
-| `CNF` | Reliability requirement |
-| `REL` | External (grid) unavailability |
-| `PAR` | Connection-agreement limit |
-
-## Data source
-
-[ONS — Dados Abertos](https://dados.ons.org.br/):
-
-- `Restrição de Operação por Constrained-off de Usinas Eólicas`
-- `Restrição de Operação por Constrained-off de Usinas Fotovoltaicas`
-
-## Project layout
-
-```
-curtailment-brazil/
-├── index.html              # dashboard markup
-├── styles.css              # dark theme
-├── app.js                  # renders charts from window.ONS_DATA
-├── data.js                 # generated — aggregated dataset
-├── scripts/build_data.sh   # downloads + aggregates ONS data
-└── vendor/chart.umd.min.js # Chart.js (vendored, offline)
-```
+Prices/revenue (CMO/PLD) → entity resolution (ANEEL SIGA + *Agentes de Geração*: `ceg → CNPJ`)
+→ credit layer (CVM debentures + financials) → company-level marts → drill-down views.
+Details in [`docs/PLATFORM_SPEC.md`](docs/PLATFORM_SPEC.md).

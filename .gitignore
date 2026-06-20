@@ -1,3 +1,18 @@
+# Python / uv
+.venv/
+__pycache__/
+*.pyc
+
+# Warehouse: raw + staging are large and re-fetchable; keep them out of git.
+data/raw/
+data/staging/
+data/quarantine/
+*.duckdb
+# Marts are small, aggregated, and committed (the shareable analytical layer):
+!data/marts/
+data/manifest.jsonl
+
+# OS / misc
 .DS_Store
 *.log
 /tmp/

@@ -1,0 +1,20 @@
+[project]
+name = "bpcm"
+version = "0.1.0"
+description = "Brazil power-sector credit-risk monitoring platform"
+requires-python = ">=3.11"
+dependencies = [
+    "duckdb>=1.1",
+    "httpx>=0.27",
+    "tenacity>=9.0",
+]
+
+[dependency-groups]
+dev = ["pytest>=8.0"]
+
+[tool.uv]
+package = false
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
